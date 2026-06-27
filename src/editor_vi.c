@@ -69,7 +69,7 @@ static void draw_screen(void) {
     }
 
     /* Limpiar líneas restantes de la pantalla */
-    for (; screen_line < 21; screen_line++) {
+    for (; screen_line < 22; screen_line++) {
         term_goto(screen_line + 1, 1);
         io_puts("\033[K");
     }
@@ -78,9 +78,9 @@ static void draw_screen(void) {
 /* Dibuja la línea de estado (últimas 2 líneas) */
 static void draw_status(void) {
     /* Línea de estado: archivo, modo, cursor, modified */
-    term_goto(22, 1);
-    io_puts("\033[1;37;44m");  /* Blanco sobre azul */
-    io_puts("\033[K");   /* Limpiar linea */
+    term_goto(23, 1);
+    io_puts("\033[7m");  /* Invertido */
+    io_puts("\033[K");  /* Limpiar linea */
     io_puts(" ");
 
     /* Nombre archivo */
@@ -127,8 +127,8 @@ static void draw_status(void) {
 
     io_puts("\033[0m");   /* Reset */
 
-    /* Línea de comandos (23) */
-    term_goto(23, 1);
+    /* Línea de comandos (24) */
+    term_goto(24, 1);
     io_puts("\033[K");   /* Limpiar */
 }
 
