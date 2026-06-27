@@ -551,26 +551,6 @@ void vi_mode_normal(void) {
                 done = 1;
                 break;
 
-            /* Salir rápido */
-            case 0x06:  /* Ctrl+F: página siguiente (siguiente sector) */
-                if (g_state->file_sectors > 1 &&
-                    g_state->sector_idx < g_state->file_sectors - 1) {
-                    buf_load_sector(g_state->sector_idx + 1);
-                    g_state->cur_line = 0;
-                    g_state->cur_global_line = g_state->sector_idx * 512 / 20;
-                    g_state->scroll_line = 0;
-                }
-                break;
-
-            case 0x02:  /* Ctrl+B: página anterior (sector previo) */
-                if (g_state->sector_idx > 0) {
-                    buf_load_sector(g_state->sector_idx - 1);
-                    g_state->cur_line = 0;
-                    g_state->cur_global_line = g_state->sector_idx * 512 / 20;
-                    g_state->scroll_line = 0;
-                }
-                break;
-
             case 0x1B:  /* ESC */
                 /* Ya estamos en modo normal */
                 break;
@@ -851,37 +831,6 @@ void vi_mode_command(void) {
             } else {
                 io_puts("FAIL");
                 io_getc();
-            }
-        }
-        /* :e nombre */
-        else if (cmd_buf[0] == 'e' && cmd_buf[1] == ' ') {
-            const char *name = cmd_buf + 2;
-            if (g_state->flags & FLAG_MODIFIED) {
-                term_goto(23, 1);
-                io_puts("ERR: No write (:e! to force)");
-            } else {
-                /* Re-montar MFS para recargar file table en RAM */
-                rom_mfs_mount();
-                STATE_SECTOR_START = get_sector_start(name);
-                if (buf_load(name)) {
-                    g_state->mode = MODE_NORMAL;
-                } else {
-                    term_goto(23, 1);
-                    io_puts("ERR: Cannot open file");
-                }
-            }
-        }
-        /* :e! nombre */
-        else if (cmd_buf[0] == 'e' && cmd_buf[1] == '!' && cmd_buf[2] == ' ') {
-            const char *name = cmd_buf + 3;
-            /* Re-montar MFS para recargar file table */
-            rom_mfs_mount();
-            STATE_SECTOR_START = get_sector_start(name);
-            if (buf_load(name)) {
-                g_state->mode = MODE_NORMAL;
-            } else {
-                term_goto(23, 1);
-                io_puts("ERR: Cannot open file");
             }
         }
         /* :set number */
