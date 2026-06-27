@@ -231,6 +231,9 @@ uint8_t buf_load(const char *filename) {
         g_filename[i] = filename[i];
     g_filename[i] = '\0';
 
+    /* Limpiar buffer antes de cargar (evita basura) */
+    for (i = 0; i < EDIT_BUF_SIZE; i++) edit_buf[i] = 0;
+
     /* Usar MicroFS para cargar */
     if (rom_mfs_open(filename) != MFS_OK) return 0;
     STATE_FILE_SIZE = rom_mfs_get_size();
