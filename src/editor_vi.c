@@ -164,22 +164,25 @@ void vi_init(void) {
 void vi_mode_normal(void) {
     char c;
     uint8_t done = 0;
+    uint8_t need_redraw;
 
     g_state->mode = MODE_NORMAL;
 
-    while (!done) {
-        draw_screen();
-        
-        scr_update_cursor();
+    /* Dibujo inicial al entrar al modo */
+    draw_screen();
+    scr_update_cursor();
 
+    while (!done) {
         c = io_getc();
 
         /* Acumular conteo numérico */
         if (c >= '0' && c <= '9' && g_state->count_digits < 3) {
             g_state->count = g_state->count * 10 + (c - '0');
             g_state->count_digits++;
-            continue;
+            continue;   /* Sin redibujar, se hará con el comando */
         }
+
+        need_redraw = 1;
 
         /* Procesar comando */
         switch (c) {
@@ -530,6 +533,7 @@ void vi_mode_normal(void) {
                         /* Mostrar error rápido */
                         term_goto(23, 1);
                         io_puts("Pattern not found");
+                        need_redraw = 0;  /* Evita doble redraw */
                     }
                 }
                 break;
@@ -552,17 +556,27 @@ void vi_mode_normal(void) {
                 break;
 
             case 0x1B:  /* ESC */
-                /* Ya estamos en modo normal */
+                need_redraw = 0;  /* Nada cambió */
                 break;
 
             default:
-                /* Ignorar comandos no reconocidos */
+                /* Ignorar ruido/comandos no reconocidos - sin redraw */
+                need_redraw = 0;
                 break;
         }
 
-        /* Reset conteo */
-        g_state->count = 0;
-        g_state->count_digits = 0;
+        if (need_redraw) {
+            /* Reset conteo solo si hubo comando válido */
+            g_state->count = 0;
+            g_state->count_digits = 0;
+
+            /* Redibujar solo si no estamos saliendo del modo */
+            /* (el modo siguiente hace su propio draw) */
+            if (!done) {
+                draw_screen();
+                scr_update_cursor();
+            }
+        }
     }
 }
 
@@ -646,10 +660,9 @@ void vi_mode_insert(void) {
                     if (buf_insert_char(g_state->cur_line, g_state->cur_col, c)) {
                         g_state->cur_col++;
                     }
+                    draw_screen();
+                    scr_update_cursor();
                 }
-                draw_screen();
-                
-                scr_update_cursor();
                 continue;
         }
     }
@@ -871,6 +884,13 @@ void vi_mode_command(void) {
 void vi_run(void) {
     /* Activar flag de ejecución */
     g_state->flags |= FLAG_RUNNING;
+
+    /* Limpiar pantalla de textos previos (banner, prompts) */
+    term_clear();
+
+    /* Fijar región de scroll: solo líneas 1-20 (edición) */
+    /* La barra de estado (22) y línea de comandos (23) quedan fuera */
+    term_set_scroll(1, 20);
 
     /* Mostrar cursor durante la edición */
     term_show_cursor(1);

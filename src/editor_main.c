@@ -117,6 +117,8 @@ static volatile uint8_t g_quit_flag = 0;
 void editor_quit(void) {
     void (* const monitor)(void) = (void (* const)(void))0x8000;
 
+    /* Reset scroll region to full terminal before exiting */
+    term_set_scroll(1, 24);
     term_clear();
     term_show_cursor(1);
     io_puts("EXIT\r\n");  /* "EXIT" para confirmar que llegó */
