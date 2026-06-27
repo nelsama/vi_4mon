@@ -12,9 +12,9 @@
 #define MAX_LINES       256
 #define MAX_FILENAME    12
 
-/* EDIT_BUF es un array en C (segmento EDITBSS, $3834-$3BFF) */
-#define EDIT_BUF_SIZE   960
-#define EDIT_BUF_ADDR   0x3834
+/* EDIT_BUF es un array en C (segmento EDITBSS, $38A4-$3BFF) */
+#define EDIT_BUF_SIZE   848
+#define EDIT_BUF_ADDR   0x38A4
 #define EDIT_BUF       EDIT_BUF_ADDR
 extern unsigned char edit_buf[EDIT_BUF_SIZE];
 #define STATE_ADDR      0x0660
