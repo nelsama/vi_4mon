@@ -79,8 +79,8 @@ static void draw_screen(void) {
 static void draw_status(void) {
     /* Línea de estado: archivo, modo, cursor, modified */
     term_goto(22, 1);
-    io_puts("\033[7m");   /* Invertido (como vi original) */
-    io_puts("\033[K");   /* Limpiar linea con fondo invertido */
+    io_puts("\033[1;37;44m");  /* Blanco sobre azul */
+    io_puts("\033[K");   /* Limpiar linea */
     io_puts(" ");
 
     /* Nombre archivo */
