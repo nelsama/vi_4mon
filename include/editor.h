@@ -112,6 +112,9 @@ void    scr_update_cursor(void);
 void    scr_scroll_up(void);
 void    scr_scroll_down(void);
 
+/* Prototipos - util asm */
+void    __fastcall__ str_to_upper(char *s);
+
 /* Prototipos - editor_vi.c */
 void    vi_init(void);
 void    vi_run(void);

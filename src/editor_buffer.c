@@ -292,6 +292,9 @@ uint8_t buf_save(void) {
             local[li] = g_filename[li];
         local[li] = '\0';
 
+        /* Asegurar mayúsculas para MicroFS */
+        str_to_upper(local);
+
         rom_mfs_delete(local);
         if (rom_mfs_create_via_zp(local, STATE_EDIT_SIZE) != MFS_OK)
             return 0;
