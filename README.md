@@ -31,23 +31,23 @@ Compila con **CC65** y usa la **ROM API** del monitor para acceder a la SD Card 
 | `:q` | Salir |
 | `:q!` | Salir sin guardar |
 | `:wq` / `:x` | Guardar y salir |
-| `:e nombre` | Editar otro archivo |
 | `:set number` / `:set nonumber` | Mostrar números de línea |
-| `:help` | Ayuda |
+| `:help` | Ayuda en pantalla |
+| `:version` | Muestra versión |
 
 ## Mapa de Memoria
 
 | Dirección | Tamaño | Uso |
 |-----------|--------|-----|
 | `$0002-$001B` | 26b | Zeropage CC65 |
-| `$0200-$07FF` | ~1.5KB | Datos del monitor + editor |
-| `$0660-$06A0` | 64b | Estado del editor (struct) |
-| `$06A0-$06A7` | 8b | Macros (edit_size, sector, etc.) |
+| `$0660-$069F` | 64b | Estado del editor (struct) |
+| `$06C0-$06C7` | 8b | Macros críticas (sector, tamaño) |
 | `$06C8-$0747` | 128b | Índice de líneas (64 × uint16) |
 | `$0748-$0787` | 64b | Yank buffer (copiar/pegar) |
-| `$0800-$37FD` | ~12KB | **Código del editor** |
-| `$3800-$3BE7` | **1000b** | **Buffer de edición** |
-| `$3BE8-$3BF3` | 12b | Nombre del archivo actual |
+| `$0788-$07C7` | 64b | Línea temporal |
+| `$07C0-$07FF` | 64b | BSS CC65 (LORAM) |
+| `$0800-$36AF` | ~11.9KB | **Código del editor** |
+| `$36E0-$3BFF` | **1300 bytes** | **Buffer de edición** |
 | `$3C00-$3DFF` | 512b | Stack CC65 |
 | `$8000-$FFFF` | 32KB | ROM del monitor |
 
@@ -99,7 +99,7 @@ editor/
 
 ## Limitaciones
 
-- Archivos de **hasta 1000 bytes** por el buffer limitado
+- Archivos de **hasta 1300 bytes** por el buffer limitado
 - Sin soporte multi-sector (se puede agregar)
 - La barra de estado se ve mejor si el terminal tiene ≥22 filas
 - UTF-8 no es seguro (el cursor se mueve por bytes)

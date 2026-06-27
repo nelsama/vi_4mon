@@ -845,9 +845,9 @@ void vi_mode_command(void) {
         else if (cmd_buf[0] == 'h' && cmd_buf[1] == 'e' && cmd_buf[2] == 'l' &&
                  cmd_buf[3] == 'p') {
             term_goto(23, 1);
-            io_puts("i=insert o=abajo O=arriba x=borrar");
-            term_goto(23, 1);
-            io_puts("dd=linea D=resto yy=copiar p=pegar");
+            io_puts("h/j/k/l 0/$ w/b G i/a I/A o/O x dd/dw/D yy p/P J");
+            term_goto(24, 1);
+            io_puts("/? n/N :w :q :wq :x :set number :help :version");
             io_puts(" [OK]");
             io_getc();
         }

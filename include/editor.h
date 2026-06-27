@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include "romapi.h"
 
-#define VERSION         "VI-1.0"
+#define VERSION         "VI-1.1"
 #define MAX_LINE        80
 #define MAX_LINES       256
 #define MAX_FILENAME    12
