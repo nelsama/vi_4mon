@@ -401,10 +401,21 @@ void vi_mode_normal(void) {
                         buf_delete_line(g_state->cur_line);
                         n--;
                     }
+                    if (g_state->lines_in_buf == 0) {
+                        /* última línea: mantener una vacía */
+                        uint8_t *b = edit_buf;
+                        uint16_t j;
+                        for (j = 0; j < EDIT_BUF_SIZE; j++) b[j] = 0;
+                        b[0] = '\n';
+                        STATE_SECTOR_VALID = 1;
+                        STATE_EDIT_SIZE = 1;
+                        buf_rebuild_lines();
+                    }
                     if (g_state->cur_line >= g_state->lines_in_buf &&
                         g_state->lines_in_buf > 0) {
                         g_state->cur_line = g_state->lines_in_buf - 1;
                     }
+                    g_state->cur_col = 0;
                 } else if (c == 'w') {
                     /* dw: borrar palabra */
                     if (g_state->count == 0) g_state->count = 1;
