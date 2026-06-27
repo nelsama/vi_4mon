@@ -14,3 +14,9 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Basic (proyecto hermano)
+basic/
+
+# Monitor (proyecto externo)
+monitor_6502_TN-9k_16k/
