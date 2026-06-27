@@ -69,7 +69,7 @@ static void draw_screen(void) {
     }
 
     /* Limpiar líneas restantes de la pantalla */
-    for (; screen_line < 22; screen_line++) {
+    for (; screen_line < 21; screen_line++) {
         term_goto(screen_line + 1, 1);
         io_puts("\033[K");
     }
@@ -78,8 +78,8 @@ static void draw_screen(void) {
 /* Dibuja la línea de estado (últimas 2 líneas) */
 static void draw_status(void) {
     /* Línea de estado: archivo, modo, cursor, modified */
-    term_goto(23, 1);
-    io_puts("\033[7m");  /* Invertido */
+    term_goto(22, 1);
+    io_puts("\033[41;37m");  /* Blanco sobre rojo */
     io_puts("\033[K");  /* Limpiar linea */
     io_puts(" ");
 
@@ -127,8 +127,8 @@ static void draw_status(void) {
 
     io_puts("\033[0m");   /* Reset */
 
-    /* Línea de comandos (24) */
-    term_goto(24, 1);
+    /* Línea de comandos (23) */
+    term_goto(23, 1);
     io_puts("\033[K");   /* Limpiar */
 }
 
@@ -539,7 +539,7 @@ void vi_mode_normal(void) {
                     }
                     if (!found) {
                         /* Mostrar error rápido */
-                        term_goto(24, 1);
+                        term_goto(23, 1);
                         io_puts("Pattern not found");
                     }
                 }
@@ -704,7 +704,7 @@ void vi_mode_search(void) {
     }
 
     /* Mostrar en línea de comandos */
-    term_goto(24, 1);
+    term_goto(23, 1);
     io_putc(pat[0]);
 
     i = 1;
@@ -766,7 +766,7 @@ void vi_mode_search(void) {
             }
 
             if (!found) {
-                term_goto(24, 1);
+                term_goto(23, 1);
                 io_puts("Pattern not found");
             }
         }
@@ -785,7 +785,7 @@ void vi_mode_command(void) {
 
     g_state->mode = MODE_COMMAND;
 
-    term_goto(24, 1);
+    term_goto(23, 1);
     io_putc(':');
 
     while (1) {
@@ -815,17 +815,17 @@ void vi_mode_command(void) {
         /* :w */
         if (cmd_buf[0] == 'w' && cmd_buf[1] == '\0') {
             if (buf_save()) {
-                term_goto(24, 1);
+                term_goto(23, 1);
                 io_puts("Written");
             } else {
-                term_goto(24, 1);
+                term_goto(23, 1);
                 io_puts("ERR: Write failed");
             }
         }
         /* :q */
         else if (cmd_buf[0] == 'q' && cmd_buf[1] == '\0') {
             if (g_state->flags & FLAG_MODIFIED) {
-                term_goto(24, 1);
+                term_goto(23, 1);
                 io_puts("ERR: No write (:q! to force)");
                 /* Esperar una tecla para que vea el error */
                 io_getc();
@@ -840,7 +840,7 @@ void vi_mode_command(void) {
         /* :wq / :x */
         else if ((cmd_buf[0] == 'w' && cmd_buf[1] == 'q' && cmd_buf[2] == '\0') ||
                  (cmd_buf[0] == 'x' && cmd_buf[1] == '\0')) {
-            term_goto(24, 1);
+            term_goto(23, 1);
             io_puts("Saving ");
             {
                 /* Mostrar tamaño a guardar */
@@ -868,7 +868,7 @@ void vi_mode_command(void) {
         else if (cmd_buf[0] == 'e' && cmd_buf[1] == ' ') {
             const char *name = cmd_buf + 2;
             if (g_state->flags & FLAG_MODIFIED) {
-                term_goto(24, 1);
+                term_goto(23, 1);
                 io_puts("ERR: No write (:e! to force)");
             } else {
                 /* Re-montar MFS para recargar file table en RAM */
@@ -877,7 +877,7 @@ void vi_mode_command(void) {
                 if (buf_load(name)) {
                     g_state->mode = MODE_NORMAL;
                 } else {
-                    term_goto(24, 1);
+                    term_goto(23, 1);
                     io_puts("ERR: Cannot open file");
                 }
             }
@@ -891,7 +891,7 @@ void vi_mode_command(void) {
             if (buf_load(name)) {
                 g_state->mode = MODE_NORMAL;
             } else {
-                term_goto(24, 1);
+                term_goto(23, 1);
                 io_puts("ERR: Cannot open file");
             }
         }
@@ -908,18 +908,18 @@ void vi_mode_command(void) {
                  cmd_buf[3] == 'p') {
             term_goto(23, 1);
             io_puts("i=insert o=abajo O=arriba x=borrar");
-            term_goto(24, 1);
+            term_goto(23, 1);
             io_puts("dd=linea D=resto yy=copiar p=pegar");
             io_puts(" [OK]");
             io_getc();
         }
         /* :version */
         else if (strncmp(cmd_buf, "version", 7) == 0) {
-            term_goto(24, 1);
+            term_goto(23, 1);
             io_puts("VI-editor " VERSION " for Tang Nano 9K/6502");
         }
         else {
-            term_goto(24, 1);
+            term_goto(23, 1);
             io_puts("Unknown command");
         }
     }
