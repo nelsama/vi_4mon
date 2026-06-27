@@ -73,30 +73,21 @@ static void draw_screen(void) {
         term_goto(screen_line + 1, 1);
         io_puts("\033[K");
     }
-}
 
-/* Dibuja la línea de estado (últimas 2 líneas) */
-static void draw_status(void) {
-    /* Línea de estado: archivo, modo, cursor, modified */
+    /* ===== BARRA DE ESTADO (fila 22) ===== */
     term_goto(22, 1);
     io_puts("\033[41;37m");  /* Blanco sobre rojo */
-    io_puts("\033[K");  /* Limpiar linea */
+    io_puts("\033[K");
     io_puts(" ");
-
-    /* Nombre archivo */
     if (g_filename[0]) {
         io_puts(g_filename);
     } else {
         io_puts("[No file]");
     }
     io_putc(' ');
-
-    /* Modified flag */
     if (g_state->flags & FLAG_MODIFIED) {
         io_puts("[+] ");
     }
-
-    /* Posición cursor */
     io_putc('(');
     {
         uint8_t n = g_state->cur_global_line + 1;
@@ -112,7 +103,6 @@ static void draw_status(void) {
         io_putc('0' + (n % 10));
     }
     io_putc(')');
-
     io_puts("  ");
     {
         uint16_t n = STATE_EDIT_SIZE;
@@ -124,12 +114,11 @@ static void draw_status(void) {
     }
     io_puts("b  ");
     io_puts(mode_name());
-
     io_puts("\033[0m");   /* Reset */
 
     /* Línea de comandos (23) */
     term_goto(23, 1);
-    io_puts("\033[K");   /* Limpiar */
+    io_puts("\033[K");
 }
 
 /* ==========================================================================
@@ -180,7 +169,7 @@ void vi_mode_normal(void) {
 
     while (!done) {
         draw_screen();
-        draw_status();
+        
         scr_update_cursor();
 
         c = io_getc();
@@ -608,7 +597,7 @@ void vi_mode_insert(void) {
 
     /* Redibujar pantalla completa al entrar a INSERT */
     draw_screen();
-    draw_status();
+    
     scr_update_cursor();
 
     while (!done) {
@@ -630,7 +619,7 @@ void vi_mode_insert(void) {
                     g_state->scroll_line++;
                 }
                 draw_screen();
-                draw_status();
+                
                 scr_update_cursor();
                 continue;
 
@@ -649,12 +638,12 @@ void vi_mode_insert(void) {
                         g_state->scroll_line > 0)
                         g_state->scroll_line--;
                     draw_screen();
-                    draw_status();
+                    
                     scr_update_cursor();
                     continue;
                 }
                 draw_screen();
-                draw_status();
+                
                 scr_update_cursor();
                 continue;
 
@@ -668,7 +657,7 @@ void vi_mode_insert(void) {
                 buf_insert_char(g_state->cur_line, g_state->cur_col, ' ');
                 g_state->cur_col++;
                 draw_screen();
-                draw_status();
+                
                 scr_update_cursor();
                 continue;
 
@@ -679,7 +668,7 @@ void vi_mode_insert(void) {
                     }
                 }
                 draw_screen();
-                draw_status();
+                
                 scr_update_cursor();
                 continue;
         }
