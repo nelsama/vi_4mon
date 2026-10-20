@@ -68,14 +68,22 @@ typedef struct {
 #define g_state     ((volatile editor_state_t*)STATE_ADDR)
 
 /* Macros absolutas para campos criticos.
-   OJO: antes vivian en $06C0, DENTRO de los 72 bytes del struct que empieza en
-   $0660. Escribir STATE_EDIT_SIZE pisaba g_state->lines_in_buf y buf_save
-   corrompia el estado. Ahora van DESPUES del struct, en la zona que no usa
-   nadie ($06D0-$06D8). LINE_IDX empieza en $06C8 (128 bytes). */
-#define STATE_EDIT_SIZE      (*(volatile uint16_t*)0x06D0)
-#define STATE_SECTOR_VALID   (*(volatile uint16_t*)0x06D2)
-#define STATE_SECTOR_START   (*(volatile uint16_t*)0x06D4)
-#define STATE_FILE_SIZE      (*(volatile uint16_t*)0x06D6)
+
+   MAPA DE $0660-$07FF (64 bytes de LINE_IDX x 2 = 128 bytes, ojo):
+     $0660-$06A7  editor_state_t (72 B)
+     $06A8-$06BF  libre
+     $06C0-$06C7  SCRATCH (temporal MFS)
+     $06C8-$0747  LINE_IDX (64 x uint16 = 128 B, idx[63] = $0746)
+     $0748-$0787  YANK
+     $0788-$07C7  TEMP_LINE
+     $07C8-$07FF  pila
+   Las macros viven en $06A8-$06B7, FUERA del struct y del indice. Antes
+   estaban en $06D0, que es idx[4]/idx[5]: buf_rebuild_lines escribia
+   idx[5]=$FFFF y borraba STATE_SECTOR_VALID. */
+#define STATE_EDIT_SIZE      (*(volatile uint16_t*)0x06A8)
+#define STATE_SECTOR_VALID   (*(volatile uint16_t*)0x06AA)
+#define STATE_SECTOR_START   (*(volatile uint16_t*)0x06AC)
+#define STATE_FILE_SIZE      (*(volatile uint16_t*)0x06AE)
 extern char g_filename[12];
 #define STATE_FILENAME       g_filename
 

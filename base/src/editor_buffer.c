@@ -235,6 +235,7 @@ uint8_t buf_load(const char *filename) {
     uint8_t *buf = edit_buf;
     uint16_t i;
     uint16_t file_size;
+    uint16_t last_nl = 0;
 
     /* Copiar nombre a g_filename */
     for (i = 0; i < MAX_FILENAME - 1 && filename[i]; i++)
@@ -244,24 +245,38 @@ uint8_t buf_load(const char *filename) {
     /* Limpiar buffer antes de cargar (evita basura) */
     for (i = 0; i < EDIT_BUF_SIZE; i++) edit_buf[i] = 0;
 
-    /* Usar MicroFS para cargar.
-       Se pide el tamano a mfs_get_size() ANTES de leer y se mete en una
-       variable local: STATE_FILE_SIZE es la macro $06D6 y se resetea a 0
-       tras el open. Leer mas alla del tamano real dejaba STATE_SECTOR_VALID
-       en $FFFF (mfs_read devuelve uint16_t y el bucle puede dar la vuelta). */
+    /* Leer el fichero UNA vez y fiarse del buffer, no del valor devuelto por
+       la ROM: rom_mfs_read_via_zp() devuelve $FFFF en este entorno para
+       ficheros pequenos, y ese $FFFF acababa en STATE_SECTOR_VALID. Se lee
+       a lo sumo EDIT_BUF_SIZE-1 y el tamano real se calcula DESPUES
+       recorriendo el buffer (hasta el ultimo '\n' valido). */
     if (rom_mfs_open(filename) != MFS_OK) return 0;
     file_size = rom_mfs_get_size();
     if (file_size > EDIT_BUF_SIZE - 1) file_size = EDIT_BUF_SIZE - 1;
     if (file_size == 0) { rom_mfs_close(); return 0; }
 
-    i = rom_mfs_read_via_zp(buf, file_size);
-    if (i > file_size) i = file_size;
-    if (i >= EDIT_BUF_SIZE) i = EDIT_BUF_SIZE - 1;
+    (void)rom_mfs_read_via_zp(buf, file_size);
     rom_mfs_close();
 
-    STATE_FILE_SIZE = i;
-    STATE_SECTOR_VALID = i;
-    STATE_EDIT_SIZE = i;
+    /* Tamano real: hasta el ultimo '\n' del buffer (el fichero acaba en
+       salto) o hasta el final de lo leido si no lo hay. */
+    i = 0;
+    while (i < file_size) {
+        if (edit_buf[i] == '\n') last_nl = (uint16_t)(i + 1);
+        i++;
+    }
+    if (last_nl == 0) {
+        /* sin '\n': se queda como una sola linea, anadiendo el salto */
+        edit_buf[file_size] = '\n';
+        last_nl = (uint16_t)(file_size + 1);
+    }
+
+    /* Se escriben las macros ANTES de reconstruir el indice: con -O el
+       compilador puede reordenar y buf_rebuild_lines() leia el valor viejo
+       ($FFFF) y contaba lineas absurdas. */
+    STATE_FILE_SIZE = last_nl;
+    STATE_SECTOR_VALID = last_nl;
+    STATE_EDIT_SIZE = last_nl;
 
     /* El sector de inicio del fichero NO se puede leer desde aqui: la tabla
        de MicroFS vive en $0264, que es la pila de hardware ($0100-$01FF usa

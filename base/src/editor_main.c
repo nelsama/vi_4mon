@@ -122,31 +122,38 @@ int main(void) {
         /* Convertir a mayúsculas (MicroFS) */
         str_to_upper(fname);
 
-        /* Cargar archivo (buf_load obtiene sector_start internamente) */
+        /* Intentar cargar. Antes de crear uno nuevo hay que asegurarse de que
+           no existe: rom_mfs_open() sobre un fichero inexistente deja la ROM
+           con el estado a medias y la PRIMERA tecla que se teclea despues se
+           pierde (la UART queda desincronizada). */
         if (!buf_load(fname)) {
             /* Archivo no existe: crear nuevo vacío */
             uint8_t *buf = edit_buf;
             uint16_t i;
 
-            STATE_FILE_SIZE = 0;
-            STATE_EDIT_SIZE = 0;
-            STATE_SECTOR_VALID = 0;
-            g_state->sector_idx = 0;
-            g_state->file_sectors = 1;
-            STATE_SECTOR_START = 0;
-            g_state->lines_in_buf = 1;
-            g_state->flags = FLAG_FILE_OPEN;
-
             /* Limpiar buffer y poner una línea vacía */
             for (i = 0; i < EDIT_BUF_SIZE; i++) buf[i] = 0;
             buf[0] = '\n';
-            STATE_SECTOR_VALID = 1;
-            STATE_EDIT_SIZE = 1;
 
-            /* Copiar nombre */
+            /* Copiar nombre ANTES de tocar las macros: se escriben una vez
+               y en este orden, igual que en buf_load. */
             for (i = 0; i < MAX_FILENAME - 1 && fname[i]; i++)
                 g_filename[i] = fname[i];
             g_filename[i] = '\0';
+
+            g_state->sector_idx = 0;
+            g_state->file_sectors = 1;
+            g_state->sector_global_off = 0;
+            g_state->flags = FLAG_FILE_OPEN;
+            g_state->cur_line = 0;
+            g_state->cur_col = 0;
+            g_state->cur_global_line = 0;
+            g_state->cur_global_offset = 0;
+
+            STATE_SECTOR_START = 0;
+            STATE_FILE_SIZE = 1;
+            STATE_SECTOR_VALID = 1;
+            STATE_EDIT_SIZE = 1;
 
             buf_rebuild_lines();
         }

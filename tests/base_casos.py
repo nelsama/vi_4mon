@@ -59,13 +59,17 @@ def c_abrir():
 
 
 def c_nuevo():
+    # OJO: hay que entrar en modo INSERT con 'i'. Teclear directamente en modo
+    # NORMAL interpreta cada letra como comando vi (la 'h' mueve a la
+    # izquierda), que es justo como funciona vi de verdad.
     s = Sesion([], "NUEVO.TXT")
-    s.raw("hola mundo\r", 2.0)
-    s.raw("\x1b", 1.0)
+    s.raw("i", 0.6)
+    s.raw("hola mundo\r", 1.5)
+    s.raw("\x1b", 0.8)
     s.raw(":wq\r", 4.0)
     s.close()
     d = harness.extraer("NUEVO.TXT")
-    return resultado("crear fichero nuevo", d is not None and b"hola mundo" in (d or b""), repr(d))
+    return resultado("crear fichero nuevo", d == b"hola mundo\n", repr(d))
 
 
 def c_insertar():
@@ -124,10 +128,11 @@ def c_sin_guardar():
 
 
 def c_fichero_grande():
-    """Un fichero mayor que el buffer: ver si se pierde al abrir/guardar."""
+    """Fichero mayor que el buffer: NO debe destruirse ni mezclarse.
+    (Paginacion fuera de alcance por ahora; lo que se exige es no perder el
+    original: o se guarda entero o se rechaza el guardado.)"""
     texto = "".join("linea %03d\n" % i for i in range(150))   # ~1500 B > 1300
     s = Sesion([("G.TXT", texto)], "G.TXT")
-    t = s.pantalla()
     s.raw("A", 0.5)
     s.raw("X\r", 1.0)
     s.raw("\x1b", 0.5)
