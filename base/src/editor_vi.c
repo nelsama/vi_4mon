@@ -862,15 +862,22 @@ void vi_mode_command(void) {
         else if (strncmp(cmd_buf, "set nonumber", 12) == 0) {
             g_state->flags &= ~FLAG_SHOW_NUM;
         }
-        /* :help */
+        /* :help - ayuda en las dos ultimas filas del editor (21 y 22).
+           Antes escribia en la fila 24, fuera de la zona que usa el editor,
+           y la segunda linea se pasaba de 80 columnas. */
         else if (cmd_buf[0] == 'h' && cmd_buf[1] == 'e' && cmd_buf[2] == 'l' &&
                  cmd_buf[3] == 'p') {
-            term_goto(23, 1);
-            io_puts("h/j/k/l 0/$ w/b G i/a I/A o/O x dd/dw/D yy p/P J");
-            term_goto(24, 1);
-            io_puts("/? n/N :w :q :wq :x :set number :help :version");
-            io_puts(" [OK]");
-            io_getc();
+            uint8_t k;
+
+            term_goto(21, 1);
+            io_puts("h j k l  0 $ w b  G  i a I A o O  x X  dd dw D  yy p P  J");
+            term_goto(22, 1);
+            io_puts("/ ? n N   :w  :q  :q!  :wq  :x  :set nu  :version");
+            io_puts("   -- tecla --");
+
+            /* Cualquier tecla vuelve a la edicion */
+            k = (uint8_t)io_getc();
+            (void)k;
         }
         /* :version */
         else if (strncmp(cmd_buf, "version", 7) == 0) {
