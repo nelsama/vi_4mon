@@ -97,6 +97,17 @@ uint8_t buf_insert_char(uint8_t line, uint8_t col, char c) {
     buf[insert_pos] = c;
     STATE_SECTOR_VALID++;
     STATE_EDIT_SIZE++;
+
+    /* Invariante: el buffer siempre acaba en '\n'. Si al escribir justo al
+       final se queda sin salto (p.ej. tras "A" + Enter al final del
+       fichero), se anade uno para no perder la linea al guardar. */
+    if (STATE_SECTOR_VALID < EDIT_BUF_SIZE &&
+        buf[STATE_SECTOR_VALID - 1] != '\n') {
+        buf[STATE_SECTOR_VALID] = '\n';
+        STATE_SECTOR_VALID++;
+        STATE_EDIT_SIZE++;
+    }
+
     g_state->flags |= FLAG_MODIFIED | FLAG_SECTOR_DIRTY;
     buf_rebuild_lines();
     return 1;
@@ -140,9 +151,13 @@ uint8_t buf_split_line(uint8_t line, uint8_t col) {
     if (col > (uint8_t)(line_end - line_start)) return 0;
     if (STATE_SECTOR_VALID >= EDIT_BUF_SIZE) return 0;
 
-    /* Partir al final de la linea (col == longitud): el '\n' ya esta ahi.
-       Antes se insertaba otro y se duplicaba el salto de linea. */
-    if (split_pos < STATE_SECTOR_VALID && buf[split_pos] == '\n') {
+    /* Regla de vi (comprobada con vim):
+         - cursor al FINAL de la linea (col == longitud): no se inserta nada,
+           el '\n' que ya hay hace de salto. El cursor pasa a la linea de abajo.
+         - cursor EN MEDIO: se inserta un '\n' y la linea se parte.
+         - linea VACIA: no se inserta nada; simplemente se baja.
+       Antes se insertaba siempre y cada Enter metia una linea vacia de mas. */
+    if (col >= (uint8_t)(line_end - line_start)) {
         buf_rebuild_lines();
         return 1;
     }
@@ -320,6 +335,15 @@ uint8_t buf_save(void) {
     total = STATE_SECTOR_VALID;
     if (total == 0) return 0;
     if (total > EDIT_BUF_SIZE) total = EDIT_BUF_SIZE;
+
+    /* En vi Enter crea una linea nueva aunque sea al final, asi que el buffer
+       puede acabar con un '\n' de mas (la "linea de trabajo" vacia). Al
+       guardar se recorta ese salto final: el fichero queda con una linea por
+       linea de texto, como en vi. Sin esto cada Enter dejaba un '\n' extra
+       al final del fichero. */
+    while (total > 1 && edit_buf[total - 1] == '\n' &&
+           edit_buf[total - 2] == '\n')
+        total--;
 
     for (li = 0; li < 15 && g_filename[li]; li++)
         local[li] = g_filename[li];

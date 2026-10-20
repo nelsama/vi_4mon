@@ -613,20 +613,30 @@ void vi_mode_insert(void) {
 
             case '\r':
             case '\n': {
-                /* buf_split_line ya deja el cursor logico en la linea nueva.
-                   Antes se avanzaba cur_line siempre: si la division no se
-                   hacia (cursor al final de la ultima linea), el cursor se
-                   saltaba a una linea inexistente y al guardar aparecia un
-                   '\n' de mas. */
+                /* buf_split_line solo inserta '\n' si el cursor esta en medio
+                   de la linea. En los dos casos (partida o no) el cursor debe
+                   pasar a la linea de abajo, que es lo que hace vi. */
                 uint8_t antes = g_state->lines_in_buf;
                 buf_split_line(g_state->cur_line, g_state->cur_col);
-                if (g_state->lines_in_buf > antes) {
+
+                if (g_state->lines_in_buf == antes) {
+                    /* No se partio la linea. Si hay linea debajo, bajar; si es
+                       la ultima (p.ej. la unica linea vacia de un fichero
+                       nuevo), hay que crear una linea nueva. */
+                    if (g_state->cur_line + 1 < g_state->lines_in_buf) {
+                        g_state->cur_line++;
+                        g_state->cur_global_line++;
+                    } else if (buf_insert_line(g_state->cur_line)) {
+                        g_state->cur_line++;
+                        g_state->cur_global_line++;
+                    }
+                } else {
                     g_state->cur_line++;
                     g_state->cur_global_line++;
-                    g_state->cur_col = 0;
-                    if (g_state->cur_line >= g_state->scroll_line + 20) {
-                        g_state->scroll_line++;
-                    }
+                }
+                g_state->cur_col = 0;
+                if (g_state->cur_line >= g_state->scroll_line + 20) {
+                    g_state->scroll_line++;
                 }
                 draw_screen();
 
