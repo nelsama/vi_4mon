@@ -113,7 +113,16 @@ static void draw_screen(void) {
         io_putc('0' + (n % 10));
     }
     io_puts("b  ");
-    io_puts(mode_name());
+    /* El nombre del modo se decide aqui mismo, en C: como mode_name() es ASM
+       y no toca nada visible, el compilador sabia el resultado y sustituia la
+       llamada por una constante; en la practica el nombre nunca se dibujaba
+       (por eso la barra no mostraba NORMAL/INSERT). */
+    switch (g_state->mode) {
+        case MODE_INSERT:  io_puts("-- INSERT --"); break;
+        case MODE_COMMAND: io_puts(":comando");    break;
+        case MODE_SEARCH:  io_puts("/busqueda");   break;
+        default:           io_puts("NORMAL");      break;
+    }
     io_puts("\033[0m");   /* Reset */
 
     /* Línea de comandos (23) */
