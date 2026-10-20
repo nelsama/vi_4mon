@@ -108,15 +108,30 @@ int main(void) {
         rom_mfs_mount();
     }
 
-    io_puts("Type :help for commands\r\n");
+    /* El prompt pide un NOMBRE DE FICHERO, no un comando. Antes ponia
+       "Type :help for commands", que hacia teclear :help aqui y crear un
+       fichero llamado ":HELP". */
+    io_puts("Comandos vi: i=escribir  ESC=salir de escribir  :w=guardar  :q=salir\r\n");
+    io_puts("            :help (ya dentro)    :wq (guardar y salir)\r\n");
 
     /* Inicializar editor */
     vi_init();
     g_quit_flag = 0;
 
     /* Preguntar archivo a editar */
-    io_puts("File: ");
+    io_puts("Archivo (nuevo si no existe): ");
     io_gets(fname, 28);
+
+    /* Aqui se escribe un NOMBRE DE FICHERO. Si el usuario teclea :help (o h)
+       por costumbre, se le explica en vez de crear un fichero ":HELP". */
+    if ((fname[0] == ':' && fname[1] == 'h') ||
+        (fname[0] == 'h' && fname[1] == 'e' && fname[2] == 'l' && fname[3] == 'p')) {
+        io_puts("Esto es el nombre de fichero, no un comando.\r\n");
+        io_puts("Los comandos vi se usan DENTRO del editor (tras abrir un fichero).\r\n");
+        io_puts("Escribe, por ejemplo, T.TXT y pulsa Enter.\r\n");
+        editor_quit();
+        return 0;
+    }
 
     if (fname[0] != '\0') {
         /* Convertir a mayúsculas (MicroFS) */
