@@ -140,6 +140,13 @@ uint8_t buf_split_line(uint8_t line, uint8_t col) {
     if (col > (uint8_t)(line_end - line_start)) return 0;
     if (STATE_SECTOR_VALID >= EDIT_BUF_SIZE) return 0;
 
+    /* Partir al final de la linea (col == longitud): el '\n' ya esta ahi.
+       Antes se insertaba otro y se duplicaba el salto de linea. */
+    if (split_pos < STATE_SECTOR_VALID && buf[split_pos] == '\n') {
+        buf_rebuild_lines();
+        return 1;
+    }
+
     for (i = STATE_SECTOR_VALID; i > split_pos; i--) buf[i] = buf[i - 1];
     buf[split_pos] = '\n';
     STATE_SECTOR_VALID++;
@@ -185,15 +192,17 @@ uint8_t buf_delete_line(uint8_t line) {
     }
 
     shift = line_end - line_start + 1;
-    for (i = line_start; i + shift < STATE_SECTOR_VALID; i++) buf[i] = buf[i + shift];
+    /* Cuanto se puede mover hacia arriba. Si la linea no termina en '\n'
+       (ultima linea sin salto) shift se pasa uno: se recorta. */
+    if (line_start + shift > STATE_SECTOR_VALID)
+        shift = STATE_SECTOR_VALID - line_start;
+    if (shift > STATE_SECTOR_VALID) shift = STATE_SECTOR_VALID;
 
-    if (shift <= STATE_SECTOR_VALID) {
-        STATE_SECTOR_VALID -= shift;
-        STATE_EDIT_SIZE -= shift;
-    } else {
-        STATE_SECTOR_VALID = 0;
-        STATE_EDIT_SIZE = 0;
-    }
+    for (i = line_start; i + shift < STATE_SECTOR_VALID; i++)
+        buf[i] = buf[i + shift];
+
+    STATE_SECTOR_VALID -= shift;
+    STATE_EDIT_SIZE -= shift;
     g_state->flags |= FLAG_MODIFIED | FLAG_SECTOR_DIRTY;
     buf_rebuild_lines();
     return 1;
@@ -225,6 +234,7 @@ uint8_t buf_insert_line(uint8_t line) {
 uint8_t buf_load(const char *filename) {
     uint8_t *buf = edit_buf;
     uint16_t i;
+    uint16_t file_size;
 
     /* Copiar nombre a g_filename */
     for (i = 0; i < MAX_FILENAME - 1 && filename[i]; i++)
@@ -234,27 +244,30 @@ uint8_t buf_load(const char *filename) {
     /* Limpiar buffer antes de cargar (evita basura) */
     for (i = 0; i < EDIT_BUF_SIZE; i++) edit_buf[i] = 0;
 
-    /* Usar MicroFS para cargar */
+    /* Usar MicroFS para cargar.
+       Se pide el tamano a mfs_get_size() ANTES de leer y se mete en una
+       variable local: STATE_FILE_SIZE es la macro $06D6 y se resetea a 0
+       tras el open. Leer mas alla del tamano real dejaba STATE_SECTOR_VALID
+       en $FFFF (mfs_read devuelve uint16_t y el bucle puede dar la vuelta). */
     if (rom_mfs_open(filename) != MFS_OK) return 0;
-    STATE_FILE_SIZE = rom_mfs_get_size();
-    if (STATE_FILE_SIZE > EDIT_BUF_SIZE) { rom_mfs_close(); return 0; }
+    file_size = rom_mfs_get_size();
+    if (file_size > EDIT_BUF_SIZE - 1) file_size = EDIT_BUF_SIZE - 1;
+    if (file_size == 0) { rom_mfs_close(); return 0; }
 
-    /* Obtener sector de inicio desde f_start interno de MicroFS ($024A) */
-    STATE_SECTOR_START = *(volatile uint16_t*)0x024A;
-
-    i = rom_mfs_read_via_zp(buf, STATE_FILE_SIZE);
-    if (i > STATE_FILE_SIZE) i = STATE_FILE_SIZE;
+    i = rom_mfs_read_via_zp(buf, file_size);
+    if (i > file_size) i = file_size;
     if (i >= EDIT_BUF_SIZE) i = EDIT_BUF_SIZE - 1;
-    STATE_SECTOR_VALID = i;
-    STATE_EDIT_SIZE = i;
     rom_mfs_close();
 
-    /* Restaurar (rom_mfs_close() pudo corromper) */
+    STATE_FILE_SIZE = i;
     STATE_SECTOR_VALID = i;
     STATE_EDIT_SIZE = i;
 
-    /* Obtener sector de inicio */
-    STATE_SECTOR_START = get_sector_start(filename);
+    /* El sector de inicio del fichero NO se puede leer desde aqui: la tabla
+       de MicroFS vive en $0264, que es la pila de hardware ($0100-$01FF usa
+       hasta $0264 con el monitor). Leerla devolvia metadatos de la pila y el
+       editor corrompia/repartia los archivos. No se usa para nada mas. */
+    STATE_SECTOR_START = 0;
 
     g_state->file_sectors = 1;
     g_state->sector_idx = 0;
@@ -275,46 +288,49 @@ uint8_t buf_load(const char *filename) {
 
 /* -----------------------------------------------------------------------
    buf_save - Guarda EDIT_BUF a SD
-   ----------------------------------------------------------------------- */
+   -----------------------------------------------------------------------
+   MicroFS escribiendo: delete + create(tamano) + write + close.
+   OJO: mfs_write() solo escribe mientras f_pos < f_size, asi que el total
+   debe coincidir EXACTAMENTE con lo que se escribe. Se usa el tamano real
+   del contenido (STATE_SECTOR_VALID), no el edit_size, que podia quedar
+   desincronizado y dejaba ceros al final del fichero. */
 uint8_t buf_save(void) {
+    char local[16];
+    uint16_t total, remain, offset, written, chunk;
+    uint8_t li;
+
     /* No se puede guardar sin nombre de archivo */
     if (g_filename[0] == '\0') return 0;
 
-    /* MicroFS: delete + create + write + close */
-    {
-        char local[16];
-        uint16_t remain = STATE_EDIT_SIZE;
-        uint16_t save_valid = STATE_SECTOR_VALID;
-        uint16_t offset = 0, written, chunk;
-        uint8_t li;
+    total = STATE_SECTOR_VALID;
+    if (total == 0) return 0;
+    if (total > EDIT_BUF_SIZE) total = EDIT_BUF_SIZE;
 
-        for (li = 0; li < 15 && g_filename[li]; li++)
-            local[li] = g_filename[li];
-        local[li] = '\0';
+    for (li = 0; li < 15 && g_filename[li]; li++)
+        local[li] = g_filename[li];
+    local[li] = '\0';
+    str_to_upper(local);            /* MicroFS usa nombres en mayusculas */
 
-        /* Asegurar mayúsculas para MicroFS */
-        str_to_upper(local);
+    rom_mfs_delete(local);
+    if (rom_mfs_create_via_zp(local, total) != MFS_OK)
+        return 0;
 
-        rom_mfs_delete(local);
-        if (rom_mfs_create_via_zp(local, STATE_EDIT_SIZE) != MFS_OK)
-            return 0;
-
-        while (remain > 0) {
-            chunk = (remain > 32) ? 32 : remain;
-            written = rom_mfs_write_via_zp(edit_buf + offset, chunk);
-            if (written != chunk) { rom_mfs_close(); return 0; }
-            offset += chunk;
-            remain -= chunk;
-        }
-        rom_mfs_close();
-
-        /* Restaurar valores que la ROM pudo corromper */
-        STATE_SECTOR_VALID = save_valid;
-        STATE_EDIT_SIZE = save_valid;
-        STATE_FILE_SIZE = save_valid;
-        g_state->flags &= ~(FLAG_MODIFIED | FLAG_SECTOR_DIRTY);
-        return 1;
+    offset = 0;
+    remain = total;
+    while (remain > 0) {
+        chunk = (remain > 64) ? 64 : remain;
+        written = rom_mfs_write_via_zp(edit_buf + offset, chunk);
+        if (written != chunk) { rom_mfs_close(); return 0; }
+        offset += chunk;
+        remain -= chunk;
     }
+    rom_mfs_close();
+
+    /* Estado coherente tras guardar */
+    STATE_EDIT_SIZE = total;
+    STATE_FILE_SIZE = total;
+    g_state->flags &= ~(FLAG_MODIFIED | FLAG_SECTOR_DIRTY);
+    return 1;
 }
 
 /* -----------------------------------------------------------------------

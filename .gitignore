@@ -7,6 +7,14 @@ output/
 *.bin
 *.hex
 *.sym
+*.s
+
+# Imagen de SD generada por las pruebas
+editor_sd.img
+
+# Python
+__pycache__/
+*.pyc
 
 # Archivos de sistema y editores
 .DS_Store
@@ -17,6 +25,8 @@ Thumbs.db
 
 # Basic (proyecto hermano)
 basic/
-
 # Monitor (proyecto externo)
 monitor_6502_TN-9k_16k/
+
+# La base congelada incluye su .bin como referencia
+!base/*.bin

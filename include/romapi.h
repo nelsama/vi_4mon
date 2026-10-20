@@ -65,7 +65,10 @@
  * $BF75     sd_write_sector    [ZP]      $F0=sector(32b), $F4=buf
  * $BF78     sd_is_ready()      fastcall
  * $BF7B     sd_get_type()      fastcall
- * $BF84     Magic "ROMAPI"     -         Identificador + version
+ * $BF7E     mfs_load_file      [ZP]      $F4=name, $F6=addr
+ * $BF81     mfs_load_run       [ZP]      $F4=name, $F6=addr
+ * $BF84     mfs_seek(offset)   fastcall  offset en AX
+ * $BF87     Magic "ROMAPI"     -         Identificador + version
  * 
  * NOTA: i2c_write ($BF6C) e i2c_read ($BF6F) usan stack CC65.
  *       No tienen wrapper ZP. Desde programas externos, usar
@@ -103,6 +106,7 @@
 #define ROMAPI_MFS_WRITE        0xBF3F    /* [ZP] usa $F4-$F7 */
 #define ROMAPI_MFS_DELETE       0xBF42
 #define ROMAPI_MFS_FORMAT       0xBF45
+#define ROMAPI_MFS_SEEK         0xBF84
 
 /* --- UART --- */
 #define ROMAPI_UART_INIT        0xBF15
@@ -141,8 +145,12 @@
 #define ROMAPI_I2C_READ         0xBF6F    /* usa stack - no wrapper */
 
 /* --- Identificador ROM API --- */
-#define ROMAPI_MAGIC_ADDR       0xBF84
+#define ROMAPI_MAGIC_ADDR       0xBF87
 #define ROMAPI_MAGIC            "ROMAPI"
+
+/* --- Carga y ejecución desde SD --- */
+#define ROMAPI_MFS_LOAD_FILE    0xBF7E
+#define ROMAPI_MFS_LOAD_RUN     0xBF81
 
 
 /* ===========================================================================
@@ -159,6 +167,7 @@
 
 /* --- MicroFS (fastcall) --- */
 #define rom_mfs_mount()         (((uint8_t (*)(void))ROMAPI_MFS_MOUNT)())
+#define rom_mfs_seek(offset)    (((uint8_t (*)(uint16_t))ROMAPI_MFS_SEEK)(offset))
 #define rom_mfs_open(name)      \
     (*(volatile uint16_t*)0xF4 = (uint16_t)(name), \
      ((uint8_t (*)(void))ROMAPI_MFS_OPEN)())
@@ -261,19 +270,31 @@ typedef struct {
      *(volatile uint16_t*)0xF6 = (len), \
      ((uint16_t (*)(void))ROMAPI_MFS_WRITE)())
 
-/* sd_read_sector:  $F0-$F1 = sector (uint16),  $F4-$F5 = buf ptr */
+/* sd_read_sector:  $F0-$F3 = sector (uint32),  $F4-$F5 = buf ptr */
 #define rom_sd_read_sector_via_zp(sector, buf) \
-    (*(volatile uint16_t*)0xF0 = (uint16_t)(sector), \
-     *(volatile uint16_t*)0xF2 = 0, \
+    (*(volatile uint32_t*)0xF0 = (sector), \
      *(volatile uint16_t*)0xF4 = (uint16_t)(buf), \
      ((uint8_t (*)(void))ROMAPI_SD_READ_SECTOR)())
 
-/* sd_write_sector: $F0-$F1 = sector (uint16),  $F4-$F5 = buf ptr */
+/* sd_write_sector: $F0-$F3 = sector (uint32),  $F4-$F5 = buf ptr */
 #define rom_sd_write_sector_via_zp(sector, buf) \
-    (*(volatile uint16_t*)0xF0 = (uint16_t)(sector), \
-     *(volatile uint16_t*)0xF2 = 0, \
+    (*(volatile uint32_t*)0xF0 = (sector), \
      *(volatile uint16_t*)0xF4 = (uint16_t)(buf), \
      ((uint8_t (*)(void))ROMAPI_SD_WRITE_SECTOR)())
+
+/* mfs_load_file: Carga archivo SD a memoria */
+/*   $F4-$F5 = nombre archivo, $F6-$F7 = direccion destino */
+#define rom_mfs_load_file(name, addr) \
+    (*(volatile uint16_t*)0xF4 = (uint16_t)(name), \
+     *(volatile uint16_t*)0xF6 = (addr), \
+     ((void (*)(void))ROMAPI_MFS_LOAD_FILE)())
+
+/* mfs_load_run: Carga archivo SD y lo ejecuta */
+/*   $F4-$F5 = nombre archivo, $F6-$F7 = direccion destino */
+#define rom_mfs_load_run(name, addr) \
+    (*(volatile uint16_t*)0xF4 = (uint16_t)(name), \
+     *(volatile uint16_t*)0xF6 = (addr), \
+     ((void (*)(void))ROMAPI_MFS_LOAD_RUN)())
 
 
 /* ===========================================================================
@@ -319,12 +340,13 @@ typedef struct {
  * 6. EJEMPLOS DE USO
  * ===========================================================================
  * 
- *  Escritura de archivo (via ZP wrapper) 
- *   rom_mfs_create_via_zp("TEST.TXT", 100);
- *   rom_mfs_write_via_zp(buffer, 100);
- *   rom_mfs_close();
- * 
- *  Lectura de archivo (via ZP wrapper) 
+ *  Guardar archivo en SD (via ZP wrapper)
+ *   rom_mfs_delete("TEST.TXT");           // eliminar si existe
+ *   rom_mfs_create_via_zp("TEST.TXT", len); // crear (abre internamente)
+ *   rom_mfs_write_via_zp(buffer, len);     // escribir datos
+ *   rom_mfs_close();                       // cerrar
+ *
+ *  Leer archivo de SD (via ZP wrapper)
  *   rom_mfs_open("TEST.TXT");
  *   uint16_t size = rom_mfs_get_size();
  *   rom_mfs_read_via_zp(buffer, size);

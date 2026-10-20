@@ -1,51 +1,35 @@
 # ============================================================================
-# makefile - Editor VI para Tang Nano 9K / 6502
+# makefile - Mini VI para Monitor 6502 (Tang Nano 9K)
 # ============================================================================
+# El editor se construye desde base/ (la version que arranca).
+#   make         -> base/editor_base.bin
+#   make test    -> arranque + bateria de casos de uso
+#   make clean
+# ============================================================================
+
 CC65_HOME ?= D:/cc65
-CC = $(CC65_HOME)/bin/cl65
-CA65 = $(CC65_HOME)/bin/ca65
-LD65 = $(CC65_HOME)/bin/ld65
+CL65  = $(CC65_HOME)/bin/cl65
+
+BASE = base
+BIN  = $(BASE)/editor_base.bin
+MAP  = $(BASE)/editor_base.map
+
+SRC = src/editor_main.c src/editor_buffer.c src/editor_io.c src/editor_vi.c \
+      src/startup.s src/editor_util_asm.s
 
 CFLAGS = -t none -O --cpu 6502 -I include
-ASFLAGS = -t none --cpu 6502
 
-all: output/editor.bin
+all: $(BIN)
 
-build:
-	@if not exist build mkdir build
-output:
-	@if not exist output mkdir output
+$(BIN): $(addprefix $(BASE)/,$(SRC)) $(BASE)/include/editor.h $(BASE)/config/editor.cfg
+	cd $(BASE) && $(CL65) $(CFLAGS) -o editor_base.bin -m editor_base.map \
+	  -C config/editor.cfg $(SRC) $(CC65_HOME)/lib/none.lib
 
-# ============================================================================
-# Objetos del editor
-# ============================================================================
-EDITOR_OBJS = build/startup.o build/editor_main.o build/editor_buffer.o \
-              build/editor_io.o build/editor_util_asm.o build/editor_vi.o
-
-output/editor.bin: $(EDITOR_OBJS) | build output
-	$(LD65) -C config/editor.cfg -m output/editor.map -o $@ $^ $(CC65_HOME)/lib/none.lib
-
-build/startup.o: src/startup.s | build
-	$(CA65) $(ASFLAGS) -o $@ $<
-
-build/editor_main.o: src/editor_main.c include/editor.h include/romapi.h | build
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-build/editor_buffer.o: src/editor_buffer.c include/editor.h include/romapi.h | build
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-build/editor_io.o: src/editor_io.c include/editor.h include/romapi.h | build
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-build/editor_util_asm.o: src/editor_util_asm.s | build
-	$(CA65) $(ASFLAGS) -o $@ $<
-
-build/editor_vi.o: src/editor_vi.c include/editor.h include/romapi.h | build
-	$(CC) -c $(CFLAGS) -o $@ $<
+test: $(BIN)
+	python tests/base_test.py --no-build
+	python tests/base_casos.py
 
 clean:
-	@if exist build rmdir /S /Q build
-	@if exist output rmdir /S /Q output
-	@echo Clean.
+	rm -f $(BIN) $(MAP)
 
-.PHONY: all build output clean
+.PHONY: all test clean

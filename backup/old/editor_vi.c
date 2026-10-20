@@ -16,14 +16,15 @@
 /* Línea temporal para construir la línea a mostrar */
 #define LINE_TEMP ((char*)TEMP_LINE_ADDR)
 
+/* Aviso de buffer/linea llena: 0 = no, 1 = linea llena, 2 = buffer lleno */
+static uint8_t g_full_msg = 0;
+
 /* Obtiene la línea de estado para el modo (en editor_util_asm.s) */
 extern const char* mode_name(void);
 
 /* Dibuja toda la pantalla */
 static void draw_screen(void) {
     uint8_t line, screen_line;
-    uint8_t *idx = (uint8_t*)LINE_IDX_ADDR;
-    uint8_t *buf = (uint8_t*)EDIT_BUF;
     char *line_ptr;
     uint8_t col;
     uint8_t draw_lines;
@@ -114,6 +115,8 @@ static void draw_screen(void) {
     }
     io_puts("b  ");
     io_puts(mode_name());
+    if (g_full_msg)
+        io_puts("  full");
     io_puts("\033[0m");   /* Reset */
 
     /* Línea de comandos (23) */
@@ -153,8 +156,12 @@ void vi_init(void) {
     g_state->count_digits = 0;
     g_state->search_active = 0;
     g_state->lines_in_buf = 1;
+    g_full_msg = 0;
+    g_state->yank_len = 0;
+    g_state->yank_offset = 0;
     STATE_EDIT_SIZE = 0;
     STATE_FILE_SIZE = 0;
+    STATE_SECTOR_VALID = 0;
     g_filename[0] = '\0';
 }
 
@@ -387,22 +394,19 @@ void vi_mode_normal(void) {
                 if (c == 'd') {
                     uint8_t n = (g_state->count == 0) ? 1 : g_state->count;
                     while (n > 0) {
-                        buf_delete_line(g_state->cur_line);
+                        if (!buf_delete_line(g_state->cur_line)) break;
                         n--;
                     }
-                    if (g_state->lines_in_buf == 0) {
-                        /* última línea: mantener una vacía */
-                        uint8_t *b = edit_buf;
-                        uint16_t j;
-                        for (j = 0; j < EDIT_BUF_SIZE; j++) b[j] = 0;
-                        b[0] = '\n';
-                        STATE_SECTOR_VALID = 1;
-                        STATE_EDIT_SIZE = 1;
-                        buf_rebuild_lines();
-                    }
-                    if (g_state->cur_line >= g_state->lines_in_buf &&
-                        g_state->lines_in_buf > 0) {
+                    /* buf_delete_line nunca deja el buffer a cero lineas */
+                    if (g_state->cur_line >= g_state->lines_in_buf)
                         g_state->cur_line = g_state->lines_in_buf - 1;
+                    g_state->cur_col = 0;
+                    g_state->cur_global_line = g_state->cur_line;
+                } else if (c == 'G') {
+                    /* dG: borrar desde la linea actual hasta el final */
+                    while (g_state->lines_in_buf > 1 &&
+                           g_state->cur_line < g_state->lines_in_buf - 1) {
+                        buf_delete_line(g_state->cur_line + 1);
                     }
                     g_state->cur_col = 0;
                 } else if (c == 'w') {
@@ -560,6 +564,21 @@ void vi_mode_normal(void) {
                 continue;
         }
 
+        /* No redibujar si el comando no esta en el vocabulario de NORMAL:
+           teclear texto que empieza por un comando desconocido (p. ej. el
+           nombre de un archivo guardado llamado "AB"+LF) haria que
+           buf_insert_char() se comiera la tecla siguiente. */
+        switch (c) {
+            case ' ': case '0': case '$': case '^': case 'w': case 'b':
+            case 'n': case 'N': case 'G': case 'i': case 'a': case 'I':
+            case 'A': case 'o': case 'O': case 'x': case 'd': case 'D':
+            case 'y': case 'p': case 'P': case 'J': case '/': case '?':
+            case ':': case 0x1B:
+                break;
+            default:
+                continue;    /* ni redibujar ni resetear el conteo */
+        }
+
         /* Reset conteo y redibujar solo para comandos válidos */
         g_state->count = 0;
         g_state->count_digits = 0;
@@ -597,6 +616,7 @@ void vi_mode_insert(void) {
                 g_state->cur_line++;
                 g_state->cur_global_line++;
                 g_state->cur_col = 0;
+                g_full_msg = 0;
                 if (g_state->cur_line >= g_state->scroll_line + 20) {
                     g_state->scroll_line++;
                 }
@@ -647,6 +667,10 @@ void vi_mode_insert(void) {
                 if (c >= 32 && c < 127) {
                     if (buf_insert_char(g_state->cur_line, g_state->cur_col, c)) {
                         g_state->cur_col++;
+                        g_full_msg = 0;   /* aviso consumido */
+                    } else {
+                        /* Avisar en la barra de estado y volver a dibujar */
+                        g_full_msg = 1;
                     }
                     draw_screen();
                     scr_update_cursor();
@@ -872,6 +896,13 @@ void vi_mode_command(void) {
 void vi_run(void) {
     /* Activar flag de ejecución */
     g_state->flags |= FLAG_RUNNING;
+
+    /* El cursor arranca en el início del documento */
+    g_state->cur_line = 0;
+    g_state->cur_col = 0;
+    g_state->cur_global_line = 0;
+    g_state->scroll_line = 0;
+    g_state->mode = MODE_NORMAL;
 
     /* Mostrar cursor durante la edición */
     term_show_cursor(1);

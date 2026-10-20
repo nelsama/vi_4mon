@@ -111,15 +111,17 @@ extern void __fastcall__ str_to_upper(char *s);
 static volatile uint8_t g_quit_flag = 0;
 
 /* ==========================================================================
-   editor_quit - Vuelve al monitor $8000 via JMP (lo más confiable)
+   monitor_reentry - Reinicia el monitor en $8000 (implementado en ASM)
+   ========================================================================== */
+extern void monitor_reentry(void);
+
+/* ==========================================================================
+   editor_quit - Vuelve al monitor reiniciandolo en $8000
    Se llama desde vi_mode_command() cuando el usuario hace :q o :wq
    ========================================================================== */
 void editor_quit(void) {
-    void (* const monitor)(void) = (void (* const)(void))0x8000;
-
     term_clear();
     term_show_cursor(1);
-    io_puts("EXIT\r\n");  /* "EXIT" para confirmar que llegó */
 
     /* Esperar a que termine TX antes de saltar */
     {
@@ -127,18 +129,27 @@ void editor_quit(void) {
         for (w = 0; w < 30000; w++);
     }
 
-    /* Llamar al monitor - JSR $8000 */
-    monitor();
-
-    /* Si vuelve (no debería), intentar JMP directo */
-    /* Esto es un loop infinito para no volver al editor */
-    while (1) {
-        /* NOP */
-    }
+    monitor_reentry();
 }
 
 int main(void) {
     char fname[28];
+    uint16_t i;
+
+    /* El editor se ejecuta de nuevo sin reiniciar la CPU: dejar el buffer
+       y el estado en un punto conocido antes de cualquier dibujo. */
+
+    /* vi_init() pone modo NORMAL y los contadores a cero (incluido
+       STATE_SECTOR_VALID), asi que va ANTES de inicializar el buffer. */
+    vi_init();
+
+    /* El buffer (EDITS) no es BSS: limpiarlo asegura que una nueva
+       ejecucion sobre la misma RAM no hereda el texto anterior. */
+    for (i = 0; i < EDIT_BUF_SIZE; i++) edit_buf[i] = 0;
+    edit_buf[0] = '\n';
+    STATE_SECTOR_VALID = 1;
+    STATE_EDIT_SIZE = 1;
+    g_state->flags = 0;
 
     /* Inicializar terminal */
     term_init();
@@ -156,8 +167,6 @@ int main(void) {
 
     io_puts("Type :help for commands\r\n");
 
-    /* Inicializar editor */
-    vi_init();
     g_quit_flag = 0;
 
     /* Preguntar archivo a editar */
@@ -168,7 +177,7 @@ int main(void) {
         /* Convertir a mayúsculas (MicroFS) */
         str_to_upper(fname);
 
-        /* Cargar archivo (buf_load obtiene sector_start internamente) */
+        /* Cargar archivo; si no existe se empieza con un buffer vacio */
         if (!buf_load(fname)) {
             /* Archivo no existe: crear nuevo vacío */
             uint8_t *buf = edit_buf;
@@ -183,19 +192,17 @@ int main(void) {
             g_state->lines_in_buf = 1;
             g_state->flags = FLAG_FILE_OPEN;
 
-            /* Limpiar buffer y poner una línea vacía */
-            for (i = 0; i < EDIT_BUF_SIZE; i++) buf[i] = 0;
-            buf[0] = '\n';
-            STATE_SECTOR_VALID = 1;
-            STATE_EDIT_SIZE = 1;
-
-            /* Copiar nombre */
+            /* buf_load() no llega a copiar el nombre si el archivo no existe */
             for (i = 0; i < MAX_FILENAME - 1 && fname[i]; i++)
                 g_filename[i] = fname[i];
             g_filename[i] = '\0';
-
-            buf_rebuild_lines();
         }
+
+        /* Un solo byte LF deja el buffer valido en ambos caminos */
+        edit_buf[0] = '\n';
+        STATE_SECTOR_VALID = 1;
+        STATE_EDIT_SIZE = 1;
+        buf_rebuild_lines();
 
         /* Entrar al editor */
         vi_run();
