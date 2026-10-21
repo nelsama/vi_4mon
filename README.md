@@ -6,27 +6,29 @@ y trabaja sobre ficheros de la SD (MicroFS).
 ## Estructura
 
 ```
-editor/               el editor (fuente unica)
-  src/                editor_main.c, editor_buffer.c, editor_io.c,
+src/                  fuentes del editor
+                      editor_main.c, editor_buffer.c, editor_io.c,
                       editor_vi.c, startup.s, editor_util_asm.s
-  include/            editor.h, romapi.h
-  config/             editor.cfg (mapa de memoria)
-  editor.bin          binario compilado (se versiona como referencia)
+include/              editor.h, romapi.h
+config/               editor.cfg (mapa de memoria)
+output/               generado por make (no se versiona)
+  editor.bin          binario, se carga en $0800
+  editor.map          mapa de memoria
 
 tests/                pruebas contra el emulador
-  test_arranque.py        arranque: carga el .bin y comprueba el banner
-  test_casos.py         bateria de casos de uso (ficheros < 1300 B)
+  test_arranque.py    arranque: carga el .bin y comprueba el banner
+  test_casos.py       bateria de casos de uso (ficheros < 1300 B)
   harness.py          arranca UN emulador y monta una SD a medida
   run_tarjeta.py      arranca el emulador con la tarjeta real
   diag/               diagnosticos puntuales (barra, help, Enter, terminal)
 
-build/                todo lo generado (no se versiona)
+build/                imagenes y capturas de las pruebas (no se versiona)
 ```
 
 ## Compilar e instalar
 
 ```
-make            # compila -> editor/editor.bin
+make            # compila -> output/editor.bin
 make sd         # compila e instala en el emulador (sdcard/ y tarjeta.img)
 make test       # arranque + bateria de casos
 make diag       # diagnosticos

@@ -11,7 +11,7 @@ import harness  # noqa: E402
 
 def main():
     con_i = "con_i" in sys.argv
-    harness.hacer_imagen([], binario="editor/editor.bin")
+    harness.hacer_imagen([], binario="output/editor.bin")
     e = harness.Emu()
     e.cmd("load EDITOR.BIN 0800", 3.0)
     e.s.sendall(b"r 0800\r")

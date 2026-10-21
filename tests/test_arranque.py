@@ -1,6 +1,6 @@
 """test_arranque.py - Comprueba que el editor arranca desde $0800.
 
-Carga editor/editor.bin como lo haria el monitor y verifica que aparece el
+Carga output/editor.bin como lo haria el monitor y verifica que aparece el
 banner y el prompt de fichero.
 
 Uso: python tests/test_arranque.py [--no-build]
@@ -13,20 +13,21 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import harness  # noqa: E402
 
 ROOT = harness.ROOT
-SRC_DIR = os.path.join(ROOT, "editor")
-BIN = os.path.join(SRC_DIR, "editor.bin")
+BIN = os.path.join(ROOT, "output", "editor.bin")
+MAP = os.path.join(ROOT, "output", "editor.map")
 
 FUENTES = ["src/editor_main.c", "src/editor_buffer.c", "src/editor_io.c",
            "src/editor_vi.c", "src/startup.s", "src/editor_util_asm.s"]
 
 
 def compilar():
+    os.makedirs(os.path.dirname(BIN), exist_ok=True)
     r = subprocess.run(
         ["D:/cc65/bin/cl65", "-t", "none", "-O", "--cpu", "6502",
-         "-I", "include", "-o", "editor.bin", "-m", "editor.map",
+         "-I", "include", "-o", BIN, "-m", MAP,
          "-C", "config/editor.cfg"] + FUENTES +
         ["D:/cc65/lib/none.lib"],
-        cwd=SRC_DIR, capture_output=True)
+        cwd=ROOT, capture_output=True)
     if r.returncode:
         sys.exit(r.stderr.decode())
     print("compilado:", BIN, os.path.getsize(BIN), "bytes")
@@ -34,7 +35,7 @@ def compilar():
 
 def arranque():
     harness.hacer_imagen([("T.TXT", "uno\ndos\ntres\n")],
-                         binario="editor/editor.bin")
+                         binario="output/editor.bin")
     e = harness.Emu()
     o = e.cmd("load EDITOR.BIN 0800", 3.0)
     print(o.decode(errors="replace").strip().splitlines()[-1])

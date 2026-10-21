@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import harness  # noqa: E402
 
-BIN = "editor/editor.bin"
+BIN = "output/editor.bin"
 
 
 class Sesion:

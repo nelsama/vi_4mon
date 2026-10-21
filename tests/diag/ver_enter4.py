@@ -21,7 +21,7 @@ def ram(a, n):
 
 
 def main():
-    harness.hacer_imagen([("M.TXT", "a\nb\nc\nd\n")], binario="editor/editor.bin")
+    harness.hacer_imagen([("M.TXT", "a\nb\nc\nd\n")], binario="output/editor.bin")
     subprocess.run(["taskkill", "/F", "/IM", "emulador.exe"], capture_output=True)
     time.sleep(1.0)
     ruta = os.path.join(harness.ROOT, "build/test_sd.img").replace("/", "\\")

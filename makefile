@@ -1,11 +1,11 @@
 # ============================================================================
 # makefile - Mini VI para Monitor 6502 (Tang Nano 9K)
 # ============================================================================
-#   make         compila            -> editor/editor.bin
+#   make         compila            -> output/editor.bin
 #   make sd      compila e instala  -> sdcard/EDITOR.BIN del emulador
 #   make test    arranque + bateria de casos de uso
 #   make diag    diagnosticos (barra, help, terminal)
-#   make clean   borra binario y mapa
+#   make clean   borra output/
 #
 # IMPORTANTE: usa `make sd` antes de probar en el emulador. Con solo `make`,
 # la tarjeta se queda con el EDITOR.BIN anterior.
@@ -20,9 +20,9 @@ SDTOOL    = python $(EMU_DIR)/tools/sd_tool.py
 TARJETA   = $(EMU_DIR)/tarjeta.img
 SDCARD    = $(EMU_DIR)/sdcard/EDITOR.BIN
 
-SRC_DIR = editor
-BIN     = $(SRC_DIR)/editor.bin
-MAP     = $(SRC_DIR)/editor.map
+OUT = output
+BIN = $(OUT)/editor.bin
+MAP = $(OUT)/editor.map
 
 SRC = src/editor_main.c src/editor_buffer.c src/editor_io.c src/editor_vi.c \
       src/startup.s src/editor_util_asm.s
@@ -31,10 +31,11 @@ CFLAGS = -t none -O --cpu 6502 -I include
 
 all: $(BIN)
 
-$(BIN): $(addprefix $(SRC_DIR)/,$(SRC)) $(SRC_DIR)/include/editor.h \
-        $(SRC_DIR)/include/romapi.h $(SRC_DIR)/config/editor.cfg
-	cd $(SRC_DIR) && $(CL65) $(CFLAGS) -o editor.bin -m editor.map \
-	  -C config/editor.cfg $(SRC) $(NONE_LIB)
+$(OUT):
+	mkdir -p $(OUT)
+
+$(BIN): $(SRC) include/editor.h include/romapi.h config/editor.cfg | $(OUT)
+	$(CL65) $(CFLAGS) -o $(BIN) -m $(MAP) -C config/editor.cfg $(SRC) $(NONE_LIB)
 	@echo "compilado: $(BIN) ($$(wc -c < $(BIN)) bytes)"
 
 # Instala el binario donde el emulador lo espera:
@@ -56,6 +57,6 @@ diag: $(BIN)
 	python tests/diag/diag_terminal.py
 
 clean:
-	rm -f $(BIN) $(MAP)
+	rm -rf $(OUT)
 
 .PHONY: all sd test diag clean
