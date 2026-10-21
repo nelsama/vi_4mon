@@ -37,7 +37,7 @@ def _tabla(data):
     return out
 
 
-def hacer_imagen(ficheros, binario="output/editor.bin"):
+def hacer_imagen(ficheros, binario="base/editor_base.bin"):
     """Crea build/test_sd.img desde cero.
 
     ficheros: lista de (nombre, bytes|str). EDITOR.BIN se anade siempre.

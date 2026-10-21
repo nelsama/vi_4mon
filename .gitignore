@@ -1,32 +1,35 @@
-# Archivos compilados y de build
+# ---------------------------------------------------------------------------
+# Generado: no se versiona
+# ---------------------------------------------------------------------------
 build/
-output/
 *.o
 *.map
 *.lbl
-*.bin
 *.hex
 *.sym
-*.s
-
-# Imagen de SD generada por las pruebas
-editor_sd.img
+*.img
+*.png
+*.log
 
 # Python
 __pycache__/
 *.pyc
 
-# Archivos de sistema y editores
+# Sistema y editores
 .DS_Store
 Thumbs.db
 .vscode/
 *.swp
 *.swo
 
-# Basic (proyecto hermano)
-basic/
-# Monitor (proyecto externo)
-monitor_6502_TN-9k_16k/
-
-# La base congelada incluye su .bin como referencia
+# ---------------------------------------------------------------------------
+# Versionado a proposito
+# ---------------------------------------------------------------------------
+# base/editor_base.bin  -> binario de referencia, listo para cargar en $0800
 !base/*.bin
+
+# ---------------------------------------------------------------------------
+# Proyectos externos (no son parte de este repo)
+# ---------------------------------------------------------------------------
+basic/
+monitor_6502_TN-9k_16k/

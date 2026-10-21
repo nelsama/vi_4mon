@@ -44,8 +44,8 @@ class Sesion:
 
 
 def resultado(nombre, ok, detalle=""):
-    print(("[OK]   " if ok else "[FALLO]") + " " + nombre + (
-        ("  -> " + detalle) if detalle else ""))
+    print(("OK" if ok else "FALLO") + (
+        ("   " + detalle) if detalle else ""), flush=True)
     return 0 if ok else 1
 
 
@@ -173,13 +173,18 @@ CASOS = {
 def main():
     nombres = sys.argv[1:] or list(CASOS)
     fallos = 0
-    for n in nombres:
+    total = len(nombres)
+    for i, n in enumerate(nombres, 1):
         if n not in CASOS:
-            print("caso desconocido:", n)
+            print("caso desconocido:", n, flush=True)
             continue
-        fallos += CASOS[n]()
+        print("[%d/%d] %s ..." % (i, total, n), end=" ", flush=True)
+        r = CASOS[n]()
+        fallos += r
+        if r:
+            print("  (seguimos con el siguiente)", flush=True)
     print()
-    print("%d caso(s) fallido(s) de %d" % (fallos, len(nombres)))
+    print("%d caso(s) fallido(s) de %d" % (fallos, total), flush=True)
     return 1 if fallos else 0
 
 

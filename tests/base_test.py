@@ -41,7 +41,7 @@ def arranque():
     print("--- r 0800 ---")
     print(txt.replace("\r", ""))
     e.close()
-    ok = "VI-EDITOR" in txt and "File:" in txt
+    ok = "VI-EDITOR" in txt and "Archivo (nuevo si no existe)" in txt
     print("RESULTADO:", "OK" if ok else "FALLO")
     return 0 if ok else 1
 

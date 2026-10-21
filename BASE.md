@@ -1,45 +1,67 @@
-# Base congelada y experimental
+# Estado del editor
 
-## `base/` — punto de partida que funciona
+Comprobado con el emulador: `make test`.
 
-Copia del editor del commit `f6ba43a` (el que arrancaba) **más los arreglos
-verificados**. Es la referencia: si algo se rompe, se vuelve aquí.
+## Casos de uso (ficheros < 1300 B)
 
-```
-base/src/          fuentes
-base/include/      cabeceras
-base/config/       mapa de memoria
-base/editor_base.bin   binario de referencia (cargar en $0800)
-```
+| Caso | Estado |
+|---|---|
+| Abrir fichero existente | OK |
+| Crear fichero nuevo | OK |
+| Insertar (`A`) | OK |
+| Borrar caracter (`x`) | OK |
+| Borrar linea (`dd`) | OK |
+| Copiar y pegar (`yy p`) | OK |
+| Navegacion (`j G`) | OK |
+| Salir sin guardar (`:q!`) | OK |
+| Varias lineas (Enter) | OK |
+| **Fichero > 1300 B** | **FALLA: se trunca al guardar** |
 
-Compilar y probar:
+## Arreglos aplicados sobre el commit `f6ba43a`
 
-```
-python tests/base_test.py     # recompila y comprueba que arranca
-python tests/base_casos.py    # batería de casos de uso
-```
-
-### Arreglos aplicados sobre el commit original
-
-| Bug | Síntoma | Arreglo |
+| Bug | Sintoma | Arreglo |
 |---|---|---|
-| Macros de estado dentro del struct | `lines_in_buf` nunca se guardaba | `STATE_*` movidas a `$06D0-$06D7` |
-| `A`/`i` no movían el cursor | el texto iba a otro sitio | corregido en `editor_vi.c` |
-| `Enter` duplicaba el salto | `abc\n\n` | `buf_split_line` no inserta si ya hay `\n` |
-| `dd` dejaba el resto duplicado | `uno/tres/res` | límite del desplazamiento corregido |
-| `p`/`P` pegaban en línea errónea | línea vacía intercalada | posición y cursor corregidos |
-| `buf_save` usaba el tamaño equivocado | ceros al final del fichero | usa `STATE_SECTOR_VALID` |
+| Macros de estado dentro del struct | `lines_in_buf` nunca se guardaba | `STATE_*` movidas a `$06A8` |
+| Macros de estado dentro del indice | se borraba `SECTOR_VALID` | igual |
+| `A`/`i` no movian el cursor | el texto iba a otro sitio | `editor_vi.c` |
+| Enter no hacia nada en fichero nuevo | todo en una linea | regla de vi en `buf_split_line` |
+| Enter metia linea vacia de mas | `cZ\n\nd` | igual |
+| `dd` dejaba el resto duplicado | `uno/tres/res` | limite del desplazamiento |
+| `p`/`P` pegaban en linea erronea | linea vacia intercalada | posicion y cursor |
+| `buf_save` con tamano equivocado | ceros al final | usa `SECTOR_VALID` |
 | Lectura de la tabla MicroFS en `$0264` | metadatos basura de la pila | eliminado `get_sector_start` |
 | Estado sin inicializar (`$FFFF`) | ediciones fuera de rango | `zerodata` en `startup.s` |
+| Bytes perdidos en la UART | barra de estado cortada | `io_putc` espera a TX_READY |
+| Nombre del modo no se dibujaba | barra sin NORMAL/INSERT | elegido en C, no via ASM |
+| `:help` fuera de pantalla | no se veia | filas 21-22 |
+| Banner ambiguo | se tecleaba `:help` como nombre | texto + aviso |
+| `tarjeta.img` desactualizada | se probaba un binario viejo | `make sd` lo instala |
 
-### Fallos conocidos (pendientes)
+## Pendiente
 
-- `STATE_SECTOR_VALID` sigue quedando en `$FFFF` al abrir: `mfs_read_via_zp`
-  devuelve `$FFFF` en este entorno y el contador se toma tal cual.
-- Crear fichero nuevo pierde el primer carácter.
-- Ficheros mayores que el buffer (1300 B) se destruyen al guardar.
+### 1. Ficheros grandes (paginacion)
 
-## `experimental/` — reescritura descartada
+Factible con la API actual, comprobado:
 
-Reescritura completa con buffer de 4 KB y paginación. **Compila pero no
-arranca**; se conserva solo por referencia. No forma parte del build.
+- `mfs_seek` + `mfs_read` permiten leer cualquier offset (probado).
+- `mfs_create` acepta hasta 65535 B.
+- Sectores de un fichero son contiguos.
+
+Tres problemas:
+
+1. La tabla de ficheros de MicroFS vive en `$0254-$0453`, encima de donde
+   puede llegar la pila. Un desbordamiento corrompe el sistema de ficheros.
+2. `mfs_create` no reutiliza el espacio de ficheros borrados: solo crece. Con
+   16 entradas y guardados repetidos se fragmenta para siempre.
+3. No hay `rename` ni `truncate`: guardar una pagina obliga a reescribir el
+   fichero entero.
+
+Presupuesto: `$0800-$3DFF` son 13,8 KB; el codigo ocupa 11,4 KB y el buffer
+1,3 KB. Para paginar hacen falta ~4 KB de buffer, asi que hay que recortar
+unos 2,4 KB de codigo.
+
+### 2. Otras mejoras
+
+- `u` (deshacer) no esta implementado.
+- `N` (busqueda inversa) no esta implementado.
+- `dw` solo borra hasta el final de la palabra actual.
