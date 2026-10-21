@@ -1,9 +1,9 @@
-"""base_casos.py - Bateria de casos de uso sobre la BASE (una sesion por caso).
+"""test_casos.py - Bateria de casos de uso del editor (una sesion por caso).
 
 Cada caso arranca un emulador limpio, hace una operacion y comprueba el
 resultado objetivo (texto en pantalla o bytes del fichero en la SD).
 
-Uso: python tests/base_casos.py [caso...]
+Uso: python tests/test_casos.py [caso...]
 """
 import os
 import sys
@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import harness  # noqa: E402
 
-BIN = "base/editor_base.bin"
+BIN = "editor/editor.bin"
 
 
 class Sesion:

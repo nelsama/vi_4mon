@@ -25,8 +25,8 @@ Thumbs.db
 # ---------------------------------------------------------------------------
 # Versionado a proposito
 # ---------------------------------------------------------------------------
-# base/editor_base.bin  -> binario de referencia, listo para cargar en $0800
-!base/*.bin
+# editor/editor.bin  -> binario de referencia, listo para cargar en $0800
+!editor/*.bin
 
 # ---------------------------------------------------------------------------
 # Proyectos externos (no son parte de este repo)

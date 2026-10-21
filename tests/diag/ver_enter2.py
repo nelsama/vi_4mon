@@ -17,7 +17,7 @@ IMG = "build/test_sd.img"
 
 def main():
     nombre = sys.argv[1] if len(sys.argv) > 1 else "NUEVO.TXT"
-    harness.hacer_imagen([("EXIST.TXT", "uno\ndos\n")], binario="base/editor_base.bin")
+    harness.hacer_imagen([("EXIST.TXT", "uno\ndos\n")], binario="editor/editor.bin")
     subprocess.run(["taskkill", "/F", "/IM", "emulador.exe"], capture_output=True)
     time.sleep(1.0)
     ruta = os.path.join(harness.ROOT, IMG).replace("/", "\\")

@@ -16,7 +16,7 @@ def estado(e, tag):
 
 
 def main():
-    harness.hacer_imagen([("T.TXT", "uno\n")], binario="base/editor_base.bin")
+    harness.hacer_imagen([("T.TXT", "uno\n")], binario="editor/editor.bin")
     e = harness.Emu()
     e.cmd("load EDITOR.BIN 0800", 3.0)
     e.s.sendall(b"r 0800\r")

@@ -6,16 +6,16 @@ y trabaja sobre ficheros de la SD (MicroFS).
 ## Estructura
 
 ```
-base/                 el editor (fuente unica)
+editor/               el editor (fuente unica)
   src/                editor_main.c, editor_buffer.c, editor_io.c,
                       editor_vi.c, startup.s, editor_util_asm.s
   include/            editor.h, romapi.h
   config/             editor.cfg (mapa de memoria)
-  editor_base.bin     binario compilado (se versiona como referencia)
+  editor.bin          binario compilado (se versiona como referencia)
 
 tests/                pruebas contra el emulador
-  base_test.py        arranque: carga el .bin y comprueba el banner
-  base_casos.py       bateria de casos de uso (ficheros < 1300 B)
+  test_arranque.py        arranque: carga el .bin y comprueba el banner
+  test_casos.py         bateria de casos de uso (ficheros < 1300 B)
   harness.py          arranca UN emulador y monta una SD a medida
   run_tarjeta.py      arranca el emulador con la tarjeta real
   diag/               diagnosticos puntuales (barra, help, Enter, terminal)
@@ -26,7 +26,7 @@ build/                todo lo generado (no se versiona)
 ## Compilar e instalar
 
 ```
-make            # compila -> base/editor_base.bin
+make            # compila -> editor/editor.bin
 make sd         # compila e instala en el emulador (sdcard/ y tarjeta.img)
 make test       # arranque + bateria de casos
 make diag       # diagnosticos
@@ -93,7 +93,7 @@ $8000-$BFFF  ROM del monitor
 
 ## Estado
 
-Ver [BASE.md](BASE.md). Resumen: 9 de 10 casos de uso pasan. Los ficheros de
+Ver [ESTADO.md](ESTADO.md). Resumen: 9 de 10 casos de uso pasan. Los ficheros de
 mas de 1300 B se truncan al guardar (necesita paginacion).
 
 ## Dependencias
